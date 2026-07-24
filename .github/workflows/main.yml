@@ -1,0 +1,62 @@
+name: Campsite Watch (Recreation.gov)
+
+# ReserveCalifornia is deliberately NOT run here — their booking platform
+# blocks requests from GitHub's cloud IPs (403 Forbidden). Those watches
+# run locally on Windows Task Scheduler instead. See README.md.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: campsite-watch
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pyyaml
+      - id: list
+        run: echo "matrix=$(python run_watchlist.py --list-json --provider RecreationDotGov)" >> "$GITHUB_OUTPUT"
+
+  check:
+    needs: prepare
+    if: needs.prepare.outputs.matrix != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        watch: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install camply pyyaml
+
+      - name: Restore search state for this entry
+        uses: actions/cache@v4
+        with:
+          path: .camply-state
+          key: camply-state-${{ matrix.watch.slug }}-${{ github.run_id }}
+          restore-keys: |
+            camply-state-${{ matrix.watch.slug }}-
+
+      - name: Check this watch for open campsites
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python run_watchlist.py --entry "${{ matrix.watch.name }}"
