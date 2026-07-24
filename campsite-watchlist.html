@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Campsite Watchlist</title>
+<style>
+  :root {
+    --bg: #10201a;
+    --bg-panel: #16281f;
+    --bg-panel-raised: #1c3226;
+    --line: #2c4638;
+    --ink: #e9f1ea;
+    --ink-dim: #9db3a6;
+    --amber: #d9962f;
+    --amber-dim: #a97426;
+    --danger: #c9614a;
+    --mono: "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    padding: 32px 20px 80px;
+    background-image:
+      radial-gradient(circle at 15% 8%, rgba(217,150,47,0.07), transparent 40%),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(233,241,234,0.02) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(233,241,234,0.02) 40px);
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  header { margin-bottom: 28px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: 0 0 8px;
+  }
+  h1 {
+    margin: 0 0 6px;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+  }
+  header p { color: var(--ink-dim); margin: 0; font-size: 14.5px; max-width: 60ch; line-height: 1.5; }
+
+  .panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px;
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-dim);
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field.full { grid-column: 1 / -1; }
+  label { font-size: 12.5px; color: var(--ink-dim); }
+  input, select {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 9px 10px;
+    font-size: 14px;
+    font-family: var(--sans);
+  }
+  input:focus, select:focus { outline: none; border-color: var(--amber-dim); }
+  input::placeholder { color: #587062; }
+  .hint { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
+  .checkrow { display: flex; align-items: center; gap: 8px; }
+  .checkrow input { width: auto; }
+
+  .lookup {
+    margin-top: 4px;
+    background: var(--bg);
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    display: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .lookup.show { display: block; }
+  .lookup b { color: var(--amber); font-weight: 600; }
+
+  button {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 6px;
+    padding: 10px 18px;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--amber); color: #1a1108; }
+  .btn-primary:hover { background: #e8a742; }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn-ghost:hover { border-color: var(--amber-dim); }
+  .actions-row { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-dim);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  td { padding: 12px 10px; border-bottom: 1px solid var(--line); font-size: 13.5px; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--bg-panel-raised);
+    color: var(--amber);
+    border: 1px solid var(--line);
+  }
+  .ids { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); }
+  .remove-btn {
+    background: none; border: none; color: var(--danger);
+    font-size: 12.5px; cursor: pointer; padding: 4px 6px; font-weight: 600;
+  }
+  .remove-btn:hover { text-decoration: underline; }
+  .empty {
+    color: var(--ink-dim);
+    font-size: 13.5px;
+    padding: 24px 10px;
+    text-align: center;
+    font-style: italic;
+  }
+
+  .download-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .download-panel p { margin: 0; font-size: 13px; color: var(--ink-dim); max-width: 46ch; }
+  .count-badge {
+    font-family: var(--mono);
+    color: var(--amber);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">campsite watch · 001</p>
+    <h1>Build your watchlist</h1>
+    <p>Add every park and date range you want watched. When you're done, download <code>watchlist.yaml</code> and drop it into your GitHub repo — the scheduled check reads this file.</p>
+  </header>
+
+  <div class="panel">
+    <h2>Find your park</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="s-provider">Search</label>
+        <select id="s-provider">
+          <option value="ReserveCalifornia">ReserveCalifornia (CA state parks)</option>
+          <option value="RecreationDotGov">Recreation.gov (national parks/forests)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="s-term">Park or campground name</label>
+        <input id="s-term" type="text" placeholder="e.g. Pfeiffer Big Sur" onkeydown="if(event.key==='Enter'){event.preventDefault();runSearch();}">
+      </div>
+    </div>
+    <div class="actions-row" style="justify-content:flex-start;margin-top:12px;">
+      <button class="btn-ghost" onclick="runSearch()">Search</button>
+    </div>
+    <div id="search-status" class="hint" style="margin-top:10px;"></div>
+    <div id="search-results" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Add a watch</h2>
+    <div class="grid">
+      <div class="field full">
+        <label for="f-name">Label</label>
+        <input id="f-name" type="text" placeholder="e.g. Pfeiffer Big Sur SP" oninput="updateLookupHint()">
+      </div>
+
+      <div class="field">
+        <label for="f-provider">Reservation system</label>
+        <select id="f-provider" onchange="updateLookupHint()">
+          <option value="ReserveCalifornia">ReserveCalifornia (CA state parks)</option>
+          <option value="RecreationDotGov">Recreation.gov (national parks/forests)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="f-idtype">ID type</label>
+        <select id="f-idtype" onchange="updateLookupHint()">
+          <option value="campground">Campground ID(s)</option>
+          <option value="recarea">Recreation-area ID (watches every campground inside)</option>
+        </select>
+      </div>
+
+      <div class="field full">
+        <label id="f-ids-label" for="f-ids">Campground ID(s) — comma-separated if more than one</label>
+        <input id="f-ids" type="text" placeholder="e.g. 611, 612, 767">
+        <div class="lookup" id="lookup-hint"></div>
+      </div>
+
+      <div class="field">
+        <label for="f-start">Search window: from</label>
+        <input id="f-start" type="date">
+      </div>
+      <div class="field">
+        <label for="f-end">Search window: until</label>
+        <input id="f-end" type="date">
+      </div>
+      <div class="field full">
+        <div class="hint">This isn't a specific stay you're booking — it's the range to scan. It'll flag <b style="color:var(--ink)">any</b> opening inside this window that matches the options below.</div>
+      </div>
+
+      <div class="field">
+        <label for="f-nights">Minimum consecutive nights</label>
+        <input id="f-nights" type="number" min="1" value="1">
+        <div class="hint">Only match stretches of at least this many nights in a row.</div>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <div class="checkrow">
+          <input id="f-weekends" type="checkbox">
+          <label for="f-weekends" style="font-size:13.5px;color:var(--ink)">Weekends only</label>
+        </div>
+        <div class="hint">Only match stays starting Friday or Saturday.</div>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn-primary" onclick="addWatch()">Add to watchlist</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Your watchlist</h2>
+    <table id="watch-table">
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>System</th>
+          <th>IDs</th>
+          <th>Search window</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="watch-body">
+      </tbody>
+    </table>
+    <div id="empty-state" class="empty">No watches yet — add one above.</div>
+  </div>
+
+  <div class="panel download-panel">
+    <p><span class="count-badge" id="count-label">0 watches</span> ready. Download the file and replace <code>watchlist.yaml</code> in your repo, then commit.</p>
+    <button class="btn-primary" onclick="downloadYaml()">Download watchlist.yaml</button>
+  </div>
+
+</div>
+
+<script>
+let watches = [];
+let lastResults = [];
+
+async function runSearch() {
+  const provider = document.getElementById('s-provider').value;
+  const term = document.getElementById('s-term').value.trim();
+  const status = document.getElementById('search-status');
+  const results = document.getElementById('search-results');
+  results.innerHTML = '';
+  lastResults = [];
+
+  if (!term) { status.textContent = 'Type a park name first.'; return; }
+  status.textContent = 'Searching…';
+
+  try {
+    const items = provider === 'ReserveCalifornia'
+      ? await searchReserveCalifornia(term)
+      : await searchRecreationGov(term);
+
+    if (items.length === 0) {
+      status.textContent = `No matches for "${term}". Try a shorter or partial name.`;
+      return;
+    }
+    status.textContent = `${items.length} match${items.length === 1 ? '' : 'es'} — click one to fill in the form below.`;
+    lastResults = items;
+    results.innerHTML = items.map((item, i) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:var(--bg);">
+        <div>
+          <div style="font-size:13.5px;">${escapeHtml(item.name || 'Unnamed')}</div>
+          ${item.context ? `<div style="font-size:11.5px;color:var(--ink-dim);">${escapeHtml(item.context)}</div>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="ids">ID: ${escapeHtml(String(item.id ?? '—'))}</span>
+          <button class="btn-ghost" style="padding:6px 12px;font-size:12.5px;" onclick="useResult(${i}, '${provider}')" ${item.id == null ? 'disabled' : ''}>Use this</button>
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    status.innerHTML = `Search failed (${escapeHtml(err.message || 'network/CORS error')}). This can happen if the government API is temporarily down or blocking browser requests. Fallback: run <code>camply campgrounds --search "${escapeHtml(term)}"${provider === 'ReserveCalifornia' ? ' --provider ReserveCalifornia' : ''}</code> on a computer with Python installed, or search directly on ${provider === 'ReserveCalifornia' ? 'reservecalifornia.com' : 'recreation.gov'} and read the ID from the page URL.`;
+  }
+}
+
+async function searchReserveCalifornia(term) {
+  // California open-data CKAN datastore: "Park Facility Site information 2020"
+  const resourceId = '6f081a3a-2f14-40e6-bbb7-c10518fca548';
+  const url = `https://data.cnra.ca.gov/api/3/action/datastore_search?resource_id=${resourceId}&q=${encodeURIComponent(term)}&limit=40`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!data.success) throw new Error('API returned an error');
+
+  const records = data.result.records || [];
+  const seen = new Map();
+  for (const r of records) {
+    const keys = Object.keys(r);
+    const findKey = (patterns) => keys.find(k => patterns.some(p => k.toLowerCase().replace(/[^a-z]/g, '').includes(p)));
+    const idKey = findKey(['facilityid']);
+    const nameKey = findKey(['facilityname']);
+    const parkKey = findKey(['unitname', 'parkname']);
+    const id = idKey ? r[idKey] : null;
+    const name = nameKey ? r[nameKey] : (parkKey ? r[parkKey] : Object.values(r)[1]);
+    const context = parkKey ? r[parkKey] : '';
+    const key = `${id}-${name}`;
+    if (id != null && !seen.has(key)) seen.set(key, { id, name, context });
+  }
+  return Array.from(seen.values()).slice(0, 15);
+}
+
+async function searchRecreationGov(term) {
+  const url = `https://ridb.recreation.gov/api/v1/facilities?query=${encodeURIComponent(term)}&limit=20`;
+  const res = await fetch(url, { headers: { accept: 'application/json' } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const list = data.RECDATA || [];
+  return list
+    .filter(r => r.FacilityID)
+    .map(r => ({
+      id: r.FacilityID,
+      name: r.FacilityName,
+      context: r.FacilityTypeDescription || ''
+    }))
+    .slice(0, 15);
+}
+
+function useResult(index, provider) {
+  const item = lastResults[index];
+  if (!item) return;
+  document.getElementById('f-name').value = item.name || '';
+  document.getElementById('f-provider').value = provider;
+  document.getElementById('f-idtype').value = 'campground';
+  document.getElementById('f-ids').value = item.id;
+  updateLookupHint();
+  document.getElementById('f-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function updateLookupHint() {
+  const name = document.getElementById('f-name').value.trim();
+  const provider = document.getElementById('f-provider').value;
+  const idType = document.getElementById('f-idtype').value;
+  const idsLabel = document.getElementById('f-ids-label');
+  const hint = document.getElementById('lookup-hint');
+
+  idsLabel.textContent = idType === 'recarea'
+    ? 'Recreation-area ID'
+    : 'Campground ID(s) — comma-separated if more than one';
+
+  if (!name) { hint.classList.remove('show'); return; }
+
+  let cmd;
+  if (provider === 'ReserveCalifornia') {
+    cmd = idType === 'recarea'
+      ? `camply recreation-areas --search "${name}" --provider ReserveCalifornia`
+      : `camply campgrounds --search "${name}" --provider ReserveCalifornia`;
+  } else {
+    cmd = idType === 'recarea'
+      ? `camply recreation-areas --search "${name}"`
+      : `camply campgrounds --search "${name}"`;
+  }
+  hint.innerHTML = `Don't know the ID yet? Run this once on your computer (needs <b>pip install camply</b>):\n\n${cmd}`;
+  hint.classList.add('show');
+}
+
+function addWatch() {
+  const name = document.getElementById('f-name').value.trim();
+  const provider = document.getElementById('f-provider').value;
+  const idType = document.getElementById('f-idtype').value;
+  const idsRaw = document.getElementById('f-ids').value.trim();
+  const start = document.getElementById('f-start').value;
+  const end = document.getElementById('f-end').value;
+  const nights = parseInt(document.getElementById('f-nights').value, 10) || 1;
+  const weekends = document.getElementById('f-weekends').checked;
+
+  if (!name || !idsRaw || !start || !end) {
+    alert('Please fill in a label, at least one ID, and both dates.');
+    return;
+  }
+  if (new Date(end) < new Date(start)) {
+    alert('End date is before start date.');
+    return;
+  }
+
+  const ids = idsRaw.split(',').map(s => s.trim()).filter(Boolean).map(Number);
+
+  watches.push({
+    name,
+    provider,
+    campground_ids: idType === 'campground' ? ids : [],
+    rec_area_ids: idType === 'recarea' ? ids : [],
+    start_date: start,
+    end_date: end,
+    nights,
+    weekends_only: weekends
+  });
+
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-ids').value = '';
+  document.getElementById('lookup-hint').classList.remove('show');
+
+  render();
+}
+
+function removeWatch(index) {
+  watches.splice(index, 1);
+  render();
+}
+
+function render() {
+  const body = document.getElementById('watch-body');
+  const empty = document.getElementById('empty-state');
+  const table = document.getElementById('watch-table');
+  const countLabel = document.getElementById('count-label');
+
+  countLabel.textContent = `${watches.length} watch${watches.length === 1 ? '' : 'es'}`;
+
+  if (watches.length === 0) {
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  table.style.display = 'table';
+  empty.style.display = 'none';
+
+  body.innerHTML = watches.map((w, i) => {
+    const ids = w.campground_ids.length ? w.campground_ids.join(', ') : w.rec_area_ids.join(', ');
+    const idType = w.campground_ids.length ? 'campground' : 'rec-area';
+    return `
+      <tr>
+        <td>${escapeHtml(w.name)}${w.weekends_only ? ' <span class="tag">weekends</span>' : ''}${w.nights > 1 ? ` <span class="tag">${w.nights}+ nights</span>` : ''}</td>
+        <td><span class="tag">${w.provider === 'ReserveCalifornia' ? 'ReserveCalifornia' : 'Recreation.gov'}</span></td>
+        <td class="ids">${idType}: ${escapeHtml(ids)}</td>
+        <td>${w.start_date} → ${w.end_date}</td>
+        <td><button class="remove-btn" onclick="removeWatch(${i})">Remove</button></td>
+      </tr>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function toYaml() {
+  let out = '# Campsite watchlist — generated by campsite-watchlist.html\n\nwatches:\n';
+  watches.forEach(w => {
+    out += `  - name: "${w.name.replace(/"/g, '\\"')}"\n`;
+    out += `    provider: "${w.provider}"\n`;
+    out += `    campground_ids: [${w.campground_ids.join(', ')}]\n`;
+    out += `    rec_area_ids: [${w.rec_area_ids.join(', ')}]\n`;
+    out += `    start_date: "${w.start_date}"\n`;
+    out += `    end_date: "${w.end_date}"\n`;
+    out += `    nights: ${w.nights}\n`;
+    out += `    weekends_only: ${w.weekends_only}\n`;
+  });
+  return out;
+}
+
+function downloadYaml() {
+  if (watches.length === 0) {
+    alert('Add at least one watch first.');
+    return;
+  }
+  const blob = new Blob([toYaml()], { type: 'text/yaml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'watchlist.yaml';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+render();
+</script>
+</body>
+</html>
